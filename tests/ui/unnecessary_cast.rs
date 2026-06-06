@@ -130,6 +130,11 @@ fn main() {
     extern_fake_libc::getpid_SAFE_TRUTH() as i32;
     let pid = unsafe { fake_libc::getpid() };
     pid as i32;
+    // issue #17166: external assoc fn / method-call initializer should suppress like a free fn
+    let s = extern_fake_libc::ExternStruct::new();
+    s.field as i32;
+    let s = extern_fake_libc::ExternStruct::new().passthrough();
+    s.field as i32;
     aaa() as u32;
     //~^ unnecessary_cast
     let x = aaa();

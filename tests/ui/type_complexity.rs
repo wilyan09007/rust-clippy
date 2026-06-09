@@ -86,4 +86,17 @@ struct D {
     ),
 }
 
+// Should not warn since types containing `impl Trait` cannot be extracted to a type alias (#17195)
+use std::iter::{Map, Zip};
+pub fn array_zip<I, J>(
+    left: I,
+    right: J,
+) -> Map<Zip<I::IntoIter, J::IntoIter>, impl FnMut((I::Item, I::Item)) -> [I::Item; 2]>
+where
+    I: IntoIterator,
+    J: IntoIterator<Item = I::Item>,
+{
+    left.into_iter().zip(right).map(<[I::Item; 2]>::from)
+}
+
 fn main() {}

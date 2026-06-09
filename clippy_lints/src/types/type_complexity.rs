@@ -8,13 +8,21 @@ use rustc_span::Span;
 use super::TYPE_COMPLEXITY;
 
 pub(super) fn check(cx: &LateContext<'_>, ty: &hir::Ty<'_>, type_complexity_threshold: u64) -> bool {
-    let score = {
-        let mut visitor = TypeComplexityVisitor { score: 0, nest: 1 };
-        visitor.visit_ty_unambig(ty);
-        visitor.score
+    let mut visitor = TypeComplexityVisitor {
+        score: 0,
+        nest: 1,
+        contains_impl_trait: false,
     };
+    visitor.visit_ty_unambig(ty);
 
-    if score > type_complexity_threshold {
+    // Types containing `impl Trait` cannot be extracted into a `type` alias on
+    // stable Rust (see rust-lang/rust#63063), so the lint's suggestion is
+    // unactionable. Skip the lint in that case (#17195).
+    if visitor.contains_impl_trait {
+        return false;
+    }
+
+    if visitor.score > type_complexity_threshold {
         span_lint(
             cx,
             TYPE_COMPLEXITY,
@@ -33,6 +41,8 @@ struct TypeComplexityVisitor {
     score: u64,
     /// current nesting level
     nest: u64,
+    /// whether the type contains an `impl Trait`
+    contains_impl_trait: bool,
 }
 
 impl<'tcx> Visitor<'tcx> for TypeComplexityVisitor {
@@ -51,6 +61,11 @@ impl<'tcx> Visitor<'tcx> for TypeComplexityVisitor {
 
             // function types bring a lot of overhead
             TyKind::FnPtr(fn_ptr) if fn_ptr.abi == ExternAbi::Rust => (50 * self.nest, 1),
+
+            TyKind::OpaqueDef(..) => {
+                self.contains_impl_trait = true;
+                (0, 0)
+            },
 
             TyKind::TraitObject(param_bounds, _) => {
                 let has_lifetime_parameters = param_bounds.iter().any(|bound| {

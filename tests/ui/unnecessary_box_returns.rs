@@ -71,6 +71,16 @@ impl HasHuge {
     }
 }
 
+// don't lint (issue #17202): array length is a generic const, size unknown
+fn _array_const_generic<const N: usize, T>(value: Box<[T; N]>) -> Box<[T; N]> {
+    value
+}
+
+// don't lint (issue #17202): array element is a generic type, size unknown
+fn _array_generic_elem<T>(value: Box<[T; 4]>) -> Box<[T; 4]> {
+    value
+}
+
 fn main() {
     // don't lint: this is a closure
     let a = || -> Box<usize> { Box::new(5) };

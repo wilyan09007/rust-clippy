@@ -5,6 +5,7 @@ use rustc_errors::Applicability;
 use rustc_hir::def_id::LocalDefId;
 use rustc_hir::{FnDecl, FnRetTy, ImplItemKind, Item, ItemKind, Node, TraitItem, TraitItemKind};
 use rustc_lint::{LateContext, LateLintPass};
+use rustc_middle::ty::TypeVisitableExt;
 use rustc_session::impl_lint_pass;
 use rustc_span::Symbol;
 
@@ -78,6 +79,13 @@ impl UnnecessaryBoxReturns {
         let Some(boxed_ty) = return_ty.boxed_ty() else {
             return;
         };
+
+        // `approx_ty_size` is only an "at least" lower bound; for types containing
+        // generic parameters it can underestimate (e.g. `[T; N]` with a generic const
+        // `N` reports `0`), so skip those to avoid false positives.
+        if boxed_ty.has_non_region_param() {
+            return;
+        }
 
         // It's sometimes useful to return Box<T> if T is unsized, so don't lint those.
         // Also, don't lint if we know that T is very large, in which case returning

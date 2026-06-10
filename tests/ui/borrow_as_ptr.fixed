@@ -65,3 +65,20 @@ fn issue15389() {
         let _ = &var as *const u32;
     };
 }
+
+fn issue_17197() {
+    struct S {
+        metadata: i32,
+    }
+    trait T {
+        fn do_it(&self);
+    }
+    #[automatically_derived]
+    impl T for S {
+        fn do_it(&self) {
+            // Don't lint inside `#[automatically_derived]` impls
+            let _p = &self.metadata as *const i32;
+            let _p: *const i32 = &self.metadata;
+        }
+    }
+}

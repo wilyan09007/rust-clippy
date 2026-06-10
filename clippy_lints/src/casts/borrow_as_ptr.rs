@@ -2,7 +2,10 @@ use clippy_utils::diagnostics::{span_lint_and_sugg, span_lint_and_then};
 use clippy_utils::msrvs::Msrv;
 use clippy_utils::source::{snippet_with_applicability, snippet_with_context};
 use clippy_utils::sugg::has_enclosing_paren;
-use clippy_utils::{get_parent_expr, is_expr_temporary_value, is_from_proc_macro, is_lint_allowed, msrvs, std_or_core};
+use clippy_utils::{
+    get_parent_expr, in_automatically_derived, is_expr_temporary_value, is_from_proc_macro, is_lint_allowed, msrvs,
+    std_or_core,
+};
 use rustc_errors::Applicability;
 use rustc_hir::{BorrowKind, Expr, ExprKind, Mutability, Ty, TyKind};
 use rustc_lint::LateContext;
@@ -25,6 +28,7 @@ pub(super) fn check<'tcx>(
         // Fix #9884
         && !is_expr_temporary_value(cx, e)
         && !is_from_proc_macro(cx, expr)
+        && !in_automatically_derived(cx.tcx, expr.hir_id)
     {
         let mut app = Applicability::MachineApplicable;
         let snip = snippet_with_context(cx, e.span, cast_expr.span.ctxt(), "..", &mut app).0;
@@ -67,6 +71,7 @@ pub(super) fn check_implicit_cast(cx: &LateContext<'_>, expr: &Expr<'_>) {
         && let Adjust::Borrow(AutoBorrow::RawPtr(mutability)) = borrow.kind
         // Do not suggest taking a raw pointer to a temporary value
         && !is_expr_temporary_value(cx, pointee)
+        && !in_automatically_derived(cx.tcx, expr.hir_id)
     {
         span_lint_and_then(cx, BORROW_AS_PTR, expr.span, "implicit borrow as raw pointer", |diag| {
             diag.span_suggestion_verbose(
